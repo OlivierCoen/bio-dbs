@@ -1,0 +1,5 @@
+.env
+.venv
+biodbs
+**.pyc
+**/__pycache__/**

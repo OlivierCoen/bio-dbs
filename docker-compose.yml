@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-biodbs}
+      POSTGRES_USER: ${POSTGRES_USER:-biodbs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-biodbs}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-biodbs}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  django:
+    build: ./app
+    env_file: .env
+    entrypoint: ["./entrypoint.sh"]
+    volumes:
+      - dbs_data:/data/dbs
+    ports:
+      - "8000:8000" # the only service exposed to the host
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+  
+  celery-worker:
+    build: ./app
+    command: celery -A config worker -l info --concurrency 2
+    env_file: .env
+    volumes:
+      - dbs_data:/data/dbs     # same volume as django/runner
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      runner:
+        condition: service_started
+    restart: unless-stopped
+
+  celery-beat:
+    build: ./app
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file: .env
+    volumes:
+      - dbs_data:/data/dbs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    # IMPORTANT: beat must stay a singleton (one container only)
+
+  runner:
+    build: ./runner
+    # Internal-only: no host port. Workers reach it at http://runner:8080.
+    env_file: .env
+    environment:
+      BANKS_DIR: /data/dbs
+    volumes:
+      - dbs_data:/data/dbs
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  dbs_data:
