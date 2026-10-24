@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 if [ -d "static" ]; then
@@ -10,6 +10,8 @@ fi
 
 echo "Migrating database..."
 python manage.py migrate
+echo "Importing modules..."
+python manage.py sync_modules
 echo "Creating superuser..."
 python manage.py createsuperuser --noinput || echo "Super user already exists"
 echo "Starting server..."

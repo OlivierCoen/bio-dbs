@@ -1,0 +1,16 @@
+[project]
+name = "bio-dbs"
+version = "0.1.0"
+requires-python = "==3.14.9"
+
+[tool.uv.workspace]
+members = [
+    "src/app",
+    "src/modules",
+    "src/runner",
+]
+
+[tool.uv.sources]
+app = { workspace = true }
+runner = { workspace = true }
+modules = { workspace = true }

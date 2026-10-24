@@ -1,0 +1,22 @@
+services:
+  django:
+    volumes:
+      - ./src/app:/srv/src/app
+      - ./src/modules:/srv/src/modules
+      - dbs-data:/data/dbs
+      - static-data:/srv/app/staticfiles
+
+  celery-beat:
+    volumes:
+      - ./src/app:/srv/src/app
+      - dbs-data:/data/dbs
+
+  check:
+    volumes:
+      - ./src/modules:/srv/src/modules
+      - dbs-data:/data/dbs     
+
+  download:
+    volumes:
+      - ./src/modules:/srv/src/modules  
+      - dbs-data:/data/dbs

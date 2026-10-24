@@ -145,5 +145,5 @@ CACHES = {
     }
 }
 
-BANKS_DIR = os.environ.get("BANKS_DIR", "/data/dbs")
+DB_DIR = os.environ.get("DB_DIR", "/data/dbs")
 RUNNER_URL = os.environ.get("RUNNER_URL", "http://runner:8080")
