@@ -22,13 +22,21 @@ COPY src/app/pyproject.toml /srv/src/app/
 COPY src/runner/pyproject.toml /srv/src/runner/
 COPY src/modules/pyproject.toml /srv/src/modules/
 
+# needed to build properly the 'modules' package in the uv env
+COPY src/modules /srv/src/modules
+
 # mandatory to be able to build the package
 RUN touch /srv/src/app/README.md /srv/src/modules/README.md /srv/src/runner/README.md
 
 RUN uv sync --frozen --no-install-project --package runner
 
-COPY ./src/app /srv/src/app
-COPY ./src/modules /srv/src/modules
+# create user, change perms
+RUN groupadd app && useradd -r -g app -u 1000 app 
+
+COPY --chown=app:app ./src/app /srv/src/app
+COPY --chown=app:app ./src/modules /srv/src/modules
+
+USER app
 
 ENV PATH="/srv/.venv/bin:$PATH"
 

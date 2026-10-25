@@ -31,8 +31,9 @@ def free_lock(run: SyncRun) -> None:
     name="databases.tasks.check_database_updates",
     soft_time_limit=60 * 60 * 1
 )
-def check_database_updates(self, db: Database) -> None:
-    run = get_run_if_not_locked(db, runtype="check")
+def check_database_updates(self, db_id: int) -> None:
+    db = Database.objects.get_or_create(id=db_id)
+    run = get_run_if_not_locked(db, runtype="check_updates")
     try:
         version = db.check_updates()
         db.last_checked_for_updates_at = datetime.now()
@@ -55,13 +56,14 @@ def check_database_updates(self, db: Database) -> None:
     name="databases.tasks.update_database",
     soft_time_limit=60 * 60 * 48
 )
-def update_database(self, db: Database) -> Path:
+def update_database(self, db_id: int) -> Path:
     """
     Ask the runner service to execute the database's download pipeline
     and poll it until completion. 
     A Redis lock prevents two concurrent pipelines for the same db.
     """
-    run = get_run_if_not_locked(db, runtype="download")
+    db = Database.objects.get_or_create(id=db_id)
+    run = get_run_if_not_locked(db, runtype="update")
     new_version = db.new_available_version
     if new_version is None:
         raise NoNewerVersionAvailable

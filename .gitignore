@@ -3,3 +3,4 @@
 biodbs
 **.pyc
 **/__pycache__/**
+**/static/**

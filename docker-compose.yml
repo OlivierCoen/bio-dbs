@@ -33,7 +33,7 @@ services:
     entrypoint: ["./entrypoint.sh"]
     volumes:
       - dbs-data:/data/dbs
-      - static-data:/srv/app/staticfiles
+      - static-data:/srv/src/app/static
     ports:
       - "8000:8000"
     depends_on:
@@ -48,6 +48,7 @@ services:
       context: .
       dockerfile: src/app/Dockerfile
     env_file: .env
+    entrypoint: ["./entrypoint-celery.sh"]
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - dbs-data:/data/dbs

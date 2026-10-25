@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = "==3.14.9"
 dependencies = [
-    "bio-dbs-modules",
+    "modules",
     "django==6.0.9",
     "celery[redis]==5.6.3",
     "flower==2.2.0",

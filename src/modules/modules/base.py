@@ -21,3 +21,15 @@ class Module(ABC):
         Returns the path to the db.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def get_name(cls):
+        if getattr(cls, 'NAME', None) is None:
+            raise NotImplementedError(f"'NAME' class attribute was not set for {cls.__name__}")
+        return cls.NAME
+
+    @classmethod
+    def get_display_name(cls):
+        if getattr(cls, 'DISPLAY_NAME', None) is None:
+            raise NotImplementedError(f"'DISPLAY_NAME' class attribute was not set for {cls.__name__}")
+        return cls.DISPLAY_NAME

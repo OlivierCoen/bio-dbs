@@ -1,22 +1,28 @@
 services:
   django:
+    environment:
+        # will be recognised instead of the installed 'modules'
+        PYTHONPATH: /srv/src/modules
     volumes:
       - ./src/app:/srv/src/app
       - ./src/modules:/srv/src/modules
       - dbs-data:/data/dbs
-      - static-data:/srv/app/staticfiles
+      - static-data:/srv/src/app/static
 
   celery-beat:
     volumes:
       - ./src/app:/srv/src/app
+      - ./src/modules:/srv/src/modules 
       - dbs-data:/data/dbs
 
   check:
     volumes:
+      - ./src/app:/srv/src/app
       - ./src/modules:/srv/src/modules
       - dbs-data:/data/dbs     
 
   download:
     volumes:
+      - ./src/app:/srv/src/app
       - ./src/modules:/srv/src/modules  
       - dbs-data:/data/dbs

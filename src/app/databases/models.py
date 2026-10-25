@@ -38,20 +38,23 @@ class Database(models.Model):
 
 
 class SyncRun(models.Model):
-    """One execution (check or download)."""
+    """One synchronisation execution (check or download)."""
 
-    TYPES: ClassVar[tuple] = ('check', 'download')
+    TYPES: ClassVar[dict[str, str]] = {
+        'check_updates': 'Check database updates',
+        'update': 'Update database'
+    }
 
-    STATUSES: ClassVar[tuple[tuple[str, str], ...]] = (
-        ("pending", "Pending"), 
-        ("running", "Running"),
-        ("success", "Success"), 
-        ("failed", "Failed"),
-        ("skipped", "No change")
-    )
+    STATUSES: ClassVar[dict[str, str]] = {
+        "pending": "Pending", 
+        "running": "Running",
+        "success": "Success", 
+        "failed": "Failed",
+        "skipped": "Skipped"
+    }
 
     db = models.ForeignKey(Database, on_delete=models.CASCADE, related_name="runs")
-    type = models.CharField(max_length=10, choices=TYPES)
+    type = models.CharField(max_length=20, choices=TYPES, default='check_updates')
     status = models.CharField(max_length=10, choices=STATUSES, default="pending")
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)

@@ -8,6 +8,8 @@ else
     python manage.py collectstatic
 fi
 
+echo "Making migrations..."
+python manage.py makemigrations
 echo "Migrating database..."
 python manage.py migrate
 echo "Importing modules..."

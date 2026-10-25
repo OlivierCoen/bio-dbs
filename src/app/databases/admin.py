@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
 from .models import Database, SyncRun
-from .tasks import check_updates
+from .tasks import check_database_updates, update_database
 
 class SyncRunInline(admin.TabularInline):
     model = SyncRun
@@ -14,7 +14,7 @@ class SyncRunInline(admin.TabularInline):
     fields = ("status", "started_at", "finished_at", "message")
     readonly_fields = fields
 
-    def has_add_permission(self, request, obj=None):
+    def has_change_permission(self, request, obj=None):
         return False
 
 
@@ -28,7 +28,9 @@ class DatabaseAdmin(admin.ModelAdmin):
         "auto_update", 
         "schedule_link"
     )
-    inlines = (SyncRun)
+    inlines = [
+        SyncRunInline,
+    ]
     actions = (
         "check_updates_of_databases",
         "update_databases" ,
@@ -37,13 +39,13 @@ class DatabaseAdmin(admin.ModelAdmin):
     @admin.action(description="Check database updates")
     def check_updates_of_databases(self, request, queryset):
         for db in queryset:
-            check_updates.delay(db)
+            check_database_updates.delay(db.id)
 
 
     @admin.action(description="Update database(s)")
     def update_databases(self, request, queryset):
         for db in queryset:
-            check_updates.delay(db)
+            update_database.delay(db.id)
             
 
     @admin.action(description="Create planning")
@@ -70,7 +72,7 @@ class DatabaseAdmin(admin.ModelAdmin):
         task = PeriodicTask.objects.filter(name=f"check-{obj.name}").first()
         if not task:
             return "—"
-        url = reverse("admin:djcelery_periodictask_change", args=[task.pk])
+        url = reverse("admin:django_celery_beat_periodictask_change", args=[task.id])
         return format_html(
             '<a href="{}">{}</a>', 
             url,
@@ -82,10 +84,11 @@ class DatabaseAdmin(admin.ModelAdmin):
 class SyncRunAdmin(admin.ModelAdmin):
     list_display = (
         "db", 
+        "type",
         "status", 
-        "version_found",
         "started_at",
-        "finished_at"
+        "finished_at",
+        "message"
     )
     list_filter = ("db", "status")
-    readonly_fields = [f.name for f in SyncRun._meta.fields]
+    readonly_fields = [f.name for f in SyncRun._meta.concrete_fields]

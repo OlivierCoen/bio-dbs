@@ -13,6 +13,12 @@ def discover_modules() -> list[type[Module]]:
     for mod in pkgutil.iter_modules(package.__path__):
         module = importlib.import_module(f"modules.{mod.name}")
         for _, cls in inspect.getmembers(module):
-            if issubclass(cls, Module) and not inspect.isabstract(cls):
+            # getting all strict subclasses of Module that are not abstract
+            if (
+                inspect.isclass(cls) 
+                and cls is not Module 
+                and issubclass(cls, Module) 
+                and not inspect.isabstract(cls)
+            ):
                 modules.append(cls)
     return modules
