@@ -127,7 +127,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / STATIC_URL
 
-# Celery ---------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# CELERY / REDIS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = "django-db"          # results stored in Postgres
@@ -145,5 +148,45 @@ CACHES = {
     }
 }
 
+
+CELERY_TASK_ROUTES = {
+    "databases.tasks.check_database_updates": {"queue": "check_updates"},
+    "databases.tasks.update_database": {"queue": "update"},
+}
+
 DB_DIR = os.environ.get("DB_DIR", "/data/dbs")
 RUNNER_URL = os.environ.get("RUNNER_URL", "http://runner:8080")
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# LOGGING
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "simple",
+        },
+    },
+    "loggers": {
+        "databases": {"level": "INFO"},
+        "modules": {"level": "INFO"},
+        "config": {"level": "INFO"},
+        "django.server": {"level": "WARNING"},
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "formatters": {
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+
+}

@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.14.9-slim
 
 # epel-release is needed to install aria2 in this base image
 RUN apt update && apt install -y \
@@ -18,25 +18,20 @@ WORKDIR /srv
 # Copy metadata first for Docker layer caching:
 # dependencies are only reinstalled when pyproject/uv.lock change.
 COPY pyproject.toml uv.lock /srv/
-COPY src/app/pyproject.toml /srv/src/app/
-COPY src/runner/pyproject.toml /srv/src/runner/
-COPY src/modules/pyproject.toml /srv/src/modules/
 
-# needed to build properly the 'modules' package in the uv env
-COPY src/modules /srv/src/modules
-
-# mandatory to be able to build the package
-RUN touch /srv/src/app/README.md /srv/src/modules/README.md /srv/src/runner/README.md
-
-RUN uv sync --frozen --no-install-project --package runner
+RUN uv sync --python /usr/local/bin/python --frozen --no-install-project
 
 # create user, change perms
-RUN groupadd app && useradd -r -g app -u 1000 app 
+RUN groupadd appuser && useradd -r -g appuser -u 1000 appuser 
 
-COPY --chown=app:app ./src/app /srv/src/app
-COPY --chown=app:app ./src/modules /srv/src/modules
+COPY --chown=appuser:appuser ./src/app /srv/src/app
 
-USER app
+# create persistent volume for databases and change its owner
+# so that it get writable
+RUN mkdir -p /data/dbs \
+    && chown appuser:appuser /data/dbs
+
+USER appuser
 
 ENV PATH="/srv/.venv/bin:$PATH"
 

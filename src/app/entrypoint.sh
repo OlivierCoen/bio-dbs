@@ -8,13 +8,11 @@ else
     python manage.py collectstatic
 fi
 
-echo "Making migrations..."
-python manage.py makemigrations
 echo "Migrating database..."
 python manage.py migrate
 echo "Importing modules..."
 python manage.py sync_modules
 echo "Creating superuser..."
-python manage.py createsuperuser --noinput || echo "Super user already exists"
-echo "Starting server..."
-python manage.py runserver 0.0.0.0:8000
+python manage.py createsuperuser --noinput || echo "Superuser already exists"
+
+exec "$@"
