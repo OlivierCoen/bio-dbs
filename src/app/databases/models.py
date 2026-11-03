@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 from pathlib import Path
 from typing import ClassVar
 
@@ -37,11 +36,10 @@ class Database(models.Model):
                 f"No module '{self.name}' found (available: {sorted(registry)})"
             )
     
-
     def check_updates(self) -> dict:
         return self.module_cls().check_updates()
 
-    def update(self, dest_path: str, subdb_names: list[str] | None = None):
+    def update(self, dest_path: str, subdb_names: list[str] | None = None) -> None:
         return self.module_cls().update(
             dest_path,
             self.new_available_version,
@@ -50,12 +48,6 @@ class Database(models.Model):
 
     def __str__(self):
         return self.display_name
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 class SubDatabase(models.Model):
@@ -76,6 +68,22 @@ class SubDatabase(models.Model):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self._sync_parent_enabled()
+
+    def _sync_parent_enabled(self) -> None:
+        """Keep the parent Database in sync with its sub-databases:
+        enabled as soon as one sub-db is enabled, disabled when none are."""
+        parent = self.database
+        has_enabled = parent.sub_databases.filter(enabled=True).exists()
+        if parent.enabled != has_enabled:
+            parent.enabled = has_enabled
+            parent.save(update_fields=["enabled"])
+
+    def __str__(self):
+        return self.name
 
 
 class SyncRun(models.Model):
@@ -98,7 +106,7 @@ class SyncRun(models.Model):
 
     
     type = models.CharField(max_length=20, choices=Type.choices)
-    db = models.ForeignKey(Database, on_delete=models.CASCADE, related_name="runs")
+    database = models.ForeignKey(Database, on_delete=models.CASCADE, related_name="runs")
     sub_database = models.ForeignKey(
         SubDatabase, on_delete=models.CASCADE, null=True, blank=True
     ) # null = the Database object itself / non-null = a specific subdatabase

@@ -21,7 +21,7 @@ class NoNewerVersionAvailable(Exception):
 
 
 def get_sync_run(db: Database, run_type: str):
-    run, _created = SyncRun.objects.get_or_create(db=db, type=run_type, status="running")
+    run, _created = SyncRun.objects.get_or_create(database=db, type=run_type, status="running")
     return run
 
 
@@ -48,13 +48,13 @@ def release_lock(lock):
     name="databases.tasks.check_database_updates",
     soft_time_limit=SyncRun.CHECK_UPDATES_TIMEOUT
 )
-def check_database_updates(self, db_id: int, sub_db_id: int | None = None) -> None:
+def check_database_updates(self, db_id: int) -> None:
     db = Database.objects.get(id=db_id)
     run = get_sync_run(db, "check_updates")
     lock = get_lock(db, "check_updates")
         
     try:
-        logger.info(f"Checking updates {db_id} {sub_db_id}")
+        logger.info(f"Checking updates for database {db.name}")
         latest_version_metadata = db.check_updates()
         logger.info(f"Obtained: {latest_version_metadata}")
         
@@ -98,7 +98,7 @@ def check_database_updates(self, db_id: int, sub_db_id: int | None = None) -> No
     name="databases.tasks.update_database",
     soft_time_limit=SyncRun.UPDATE_TIMEOUT
 )
-def update_database(self, db_id: int):
+def update_database(self, db_id: int, sub_db_ids: list[int] | None = None):
     """
     Ask the runner service to execute the database's download pipeline
     and poll it until completion. 
@@ -116,11 +116,17 @@ def update_database(self, db_id: int):
     """
         
     try:
-        enabled_subdbs = SubDatabase.objects.filter(database=db, enabled=True) 
-        enabled_subdb_names = [subdb.name for subdb in enabled_subdbs]
-        logger.info(f"Updating {db_id} (sub-databases: {' '.join(enabled_subdb_names)})")
-        db.update(settings.DB_DIR, enabled_subdb_names)
+        subdbs = SubDatabase.objects.filter(database=db, enabled=True) 
+        if sub_db_ids:
+            subdbs = subdbs.filter(pk__in=sub_db_ids)
+        if not subdbs:
+            raise ValueError("No enabled subdatabases among the selected items...")
+            
+        subdb_names = [subdb.name for subdb in subdbs]
+        logger.info(f"Updating {db_id} (sub-databases: {' '.join(subdb_names)})")
+        db.update(settings.DB_DIR, subdb_names)
         logger.info("Done")
+        
         db.current_version = new_version
         db.new_available_version = None
         db.last_synced_at = timezone.now()

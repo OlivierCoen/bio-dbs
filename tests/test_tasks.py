@@ -13,5 +13,5 @@ def test_lock_prevents_concurrent_run(fake_lock_redis, blast_db, db):
 @pytest.mark.django_db
 def test_check_updates_creates_run(blast_db):
     check_database_updates(blast_db.pk)
-    assert blast_db.sync_runs.filter(status="success").exists()
+    assert SyncRun.objects.filter(database=blast_db, status="success").exists()
     

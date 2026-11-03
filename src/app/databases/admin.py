@@ -1,6 +1,7 @@
 import logging
 from django.contrib import admin
 from django.urls import reverse
+from collections import defaultdict
 from django.utils.html import format_html
 
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
@@ -16,10 +17,16 @@ logger = logging.getLogger(__name__)
 
 class SyncRunInline(admin.TabularInline):
     model = SyncRun
-    extra = 0
+    extra = 0 # Number of empty forms to display
     can_delete = False
     fields = ("status", "started_at", "finished_at", "message")
     readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
     def has_change_permission(self, request, obj=None):
         return False
@@ -27,10 +34,16 @@ class SyncRunInline(admin.TabularInline):
 
 class SubDatabaseInline(admin.TabularInline):
     model = SubDatabase
-    extra = 0
+    extra = 0 # Number of empty forms to display
     can_delete = False
     fields = ("name", "enabled", "current_version", "last_synced_at")
-    readonly_fields = ("current_version", "last_synced_at")
+    readonly_fields = ("name", "current_version", "last_synced_at")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
     
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -44,6 +57,7 @@ class DatabaseAdmin(admin.ModelAdmin):
         "enabled",
         "n_sub_databases",
         "current_version", 
+        "new_available_version",
         "last_synced_at",
         "auto_update", 
         "schedule_link"
@@ -58,7 +72,10 @@ class DatabaseAdmin(admin.ModelAdmin):
     )
 
     list_filter = ("name", "enabled", "last_synced_at", "auto_update")
-    readonly_fields = ("name", "n_sub_databases", "last_synced_at", "schedule_link")
+    readonly_fields = (
+        "name", "display_name", "n_sub_databases", "current_version", "new_available_version",
+        "last_checked_for_updates_at", "last_synced_at", "schedule_link"
+    )
 
     @admin.action(description="Check updates of database(s)")
     def check_updates_of_databases(self, request, queryset):
@@ -107,6 +124,12 @@ class DatabaseAdmin(admin.ModelAdmin):
     def n_sub_databases(self, obj):
         return obj.sub_databases.count()
 
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 @admin.register(SubDatabase)
 class SubDatabaseAdmin(admin.ModelAdmin):
@@ -121,29 +144,49 @@ class SubDatabaseAdmin(admin.ModelAdmin):
     )
     list_filter = ("database", "name", "enabled", "last_synced_at")
     search_fields = ("name", "database")
-    actions = ("download_selected", "check_updates_selected")
-    readonly_fields = [f.name for f in SubDatabase._meta.concrete_fields]
+    actions = ("check_updates_of_subdatabases", "update_subdatabases")
+    readonly_fields = ("name", "database", "n_parts", "mean_size",
+                           "current_version", "last_synced_at")
+
+    @admin.action(description="Check updates of the parent database")
+    def check_updates_of_subdatabases(self, request, queryset):
+        db_ids = list({sub.database.id for sub in queryset})
+        for db_id in db_ids:
+            check_database_updates.delay(db_id)
 
     @admin.action(description="Update sub-database(s)")
-    def check_updates_of_subdatabases(self, request, queryset):
-        for sub in queryset:
-            check_database_updates.delay(sub.db.id, sub.id)
-
-    @admin.action(description="Update database(s)")
     def update_subdatabases(self, request, queryset):
+        db2subdb = defaultdict(list)
         for sub in queryset:
-            update_database.delay(sub.db.id, sub.id)
+            db2subdb[sub.database.id].append(sub.id)
+        for db_id, subdb_ids in db2subdb.items():
+            update_database.delay(db_id, subdb_ids)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(SyncRun)
 class SyncRunAdmin(admin.ModelAdmin):
     list_display = (
-        "db", 
+        "database", 
         "type",
         "status", 
         "started_at",
         "finished_at",
         "message"
     )
-    list_filter = ("db", "status")
-    readonly_fields = [f.name for f in SyncRun._meta.concrete_fields]
+    list_filter = ("database", "status")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Sync runs are a read-only audit trail
+        return False

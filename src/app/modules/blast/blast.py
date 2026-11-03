@@ -1,5 +1,6 @@
 from ..base import BaseModule
 from typing import ClassVar
+from pathlib import Path
 from statistics import mean
 
 import httpx
@@ -120,7 +121,7 @@ class Blast(BaseModule):
 
 
     @classmethod
-    def download(cls, blast_db_metadata: dict, dest_dir: str, subdb_names: list[str] | None  = None):
+    def download(cls, blast_db_metadata: dict, dest_dir: str, subdb_names: list[str] | None  = None) -> Path:
         filenames = []
         for blast_db_name, _dict in blast_db_metadata.items():
             # filtering on the sub db name
